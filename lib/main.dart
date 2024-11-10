@@ -1,22 +1,26 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:global_configuration/global_configuration.dart';
+import 'package:http/http.dart' as http;
 
 import 'Recipe.dart';
 
-void main() {
+void main() async {
   runApp(const MyApp());
 }
 
-class RecipeModel with ChangeNotifier {
-  final List<Recipe> _recipes = [
-    Recipe("Lasagne", "Award Winning Traditional Lasagne"),
-    Recipe("Steak & Veg", "Simple, but Delicious, Steak and Veg"),
-  ];
-
-  List<Recipe> get recipes => _recipes;
-
-  void add(String title, String description) {
-    _recipes.add(Recipe(title, description));
-    notifyListeners();
+Future<List<Recipe>> fetchRecipes() async {
+  String uri = const String.fromEnvironment("API_URI");
+  final response =
+      await http.get(Uri.parse("${uri}/recipes"));
+  if (response.statusCode == 200) {
+    final List<dynamic> jsonArray = jsonDecode(response.body);
+    final List<Recipe> recipeList = List.from(
+        jsonArray.map<Recipe>((dynamic recipe) => Recipe.fromJson(recipe)));
+    return recipeList;
+  } else {
+    throw Exception("Failed to get recipes");
   }
 }
 
@@ -37,44 +41,65 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class RecipeListDataTable extends StatelessWidget {
-  const RecipeListDataTable({super.key, required this.recipeValueNotifier});
-  final RecipeModel recipeValueNotifier;
+class RecipeListDataTable extends StatefulWidget {
+  @override
+  State<StatefulWidget> createState() => _RecipeListDataTableState();
+}
 
+class _RecipeListDataTableState extends State<RecipeListDataTable> {
+  late Future<List<Recipe>> futureRecipeList;
+
+  @override
+  void initState() {
+    super.initState();
+    futureRecipeList = fetchRecipes();
+  }
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-        child: ListenableBuilder(
-            listenable: recipeValueNotifier,
-            builder: (BuildContext context, Widget? child) {
-              return DataTable(
-                  columns: const <DataColumn>[
-                    DataColumn(
-                        label: Expanded(
-                            child: Text(
-                      "Title",
-                      style: TextStyle(fontStyle: FontStyle.italic),
-                    ))),
-                    DataColumn(
-                        label: Expanded(
-                            child: Text(
-                      "Description",
-                      style: TextStyle(fontStyle: FontStyle.italic),
-                    )))
-                  ],
-                  rows: recipeValueNotifier.recipes
-                      .map((recipe) => DataRow(cells: <DataCell>[
-                            DataCell(Text(recipe.title)),
-                            DataCell(Text(recipe.description))
-                          ]))
-                      .toList());
+        child: FutureBuilder<List<Recipe>>(
+            future: futureRecipeList,
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return DataTable(
+                    columns: const <DataColumn>[
+                      DataColumn(
+                          label: Expanded(
+                              child: Text(
+                        "Title",
+                        style: TextStyle(fontStyle: FontStyle.italic),
+                      ))),
+                      DataColumn(
+                          label: Expanded(
+                              child: Text(
+                        "Description",
+                        style: TextStyle(fontStyle: FontStyle.italic),
+                      )))
+                    ],
+                    rows: snapshot.requireData
+                        .map((recipe) => DataRow(cells: <DataCell>[
+                              DataCell(Text(recipe.title)),
+                              DataCell(Text(recipe.description))
+                            ]))
+                        .toList());
+              } else if (snapshot.hasError) {
+                return Text('${snapshot.error}');
+              }
+              return const CircularProgressIndicator();
             }));
+  }
+
+  @override
+  State<StatefulWidget> createState() {
+    // TODO: implement createState
+    throw UnimplementedError();
   }
 }
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
+
   final String title;
 
   @override
@@ -82,11 +107,10 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  RecipeModel recipeModel = RecipeModel();
-
   void _showFullScreenDialog() {
     final _formKey = GlobalKey<FormState>();
     final titleController = TextEditingController();
+    final nameController = TextEditingController();
     final descriptionController = TextEditingController();
 
     Navigator.of(context).push(MaterialPageRoute<void>(
@@ -106,6 +130,17 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            TextFormField(
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return "Enter a valid value";
+                                }
+                                return null;
+                              },
+                              controller: nameController,
+                              decoration:
+                                  const InputDecoration(labelText: "Name"),
+                            ),
                             TextFormField(
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -134,8 +169,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                 child: ElevatedButton(
                                     onPressed: () {
                                       if (_formKey.currentState!.validate()) {
-                                        recipeModel.add(titleController.text,
-                                            descriptionController.text);
                                         Navigator.of(context).pop("OK");
                                       }
                                     },
@@ -152,7 +185,7 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-          child: RecipeListDataTable(recipeValueNotifier: recipeModel),
+        child: RecipeListDataTable(),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showFullScreenDialog,
