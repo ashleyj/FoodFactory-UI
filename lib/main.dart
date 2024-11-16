@@ -1,99 +1,30 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:global_configuration/global_configuration.dart';
-import 'package:http/http.dart' as http;
-
-import 'Recipe.dart';
+import 'package:food_factory_ui/model/RecipeModel.dart';
+import 'package:food_factory_ui/RecipeListDataTable.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   runApp(const MyApp());
 }
 
-Future<List<Recipe>> fetchRecipes() async {
-  String uri = const String.fromEnvironment("API_URI");
-  final response =
-      await http.get(Uri.parse("${uri}/recipes"));
-  if (response.statusCode == 200) {
-    final List<dynamic> jsonArray = jsonDecode(response.body);
-    final List<Recipe> recipeList = List.from(
-        jsonArray.map<Recipe>((dynamic recipe) => Recipe.fromJson(recipe)));
-    return recipeList;
-  } else {
-    throw Exception("Failed to get recipes");
-  }
-}
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Recipe Management',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.lime),
-        useMaterial3: true,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<RecipeModel>(create: (context) => RecipeModel())
+      ],
+      child: MaterialApp(
+        title: 'Recipe Management',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.lime),
+          useMaterial3: true,
+        ),
+        home: const MyHomePage(title: 'Recipe Management'),
       ),
-      home: const MyHomePage(title: 'Recipe Management'),
     );
-  }
-}
-
-class RecipeListDataTable extends StatefulWidget {
-  @override
-  State<StatefulWidget> createState() => _RecipeListDataTableState();
-}
-
-class _RecipeListDataTableState extends State<RecipeListDataTable> {
-  late Future<List<Recipe>> futureRecipeList;
-
-  @override
-  void initState() {
-    super.initState();
-    futureRecipeList = fetchRecipes();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-        child: FutureBuilder<List<Recipe>>(
-            future: futureRecipeList,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return DataTable(
-                    columns: const <DataColumn>[
-                      DataColumn(
-                          label: Expanded(
-                              child: Text(
-                        "Title",
-                        style: TextStyle(fontStyle: FontStyle.italic),
-                      ))),
-                      DataColumn(
-                          label: Expanded(
-                              child: Text(
-                        "Description",
-                        style: TextStyle(fontStyle: FontStyle.italic),
-                      )))
-                    ],
-                    rows: snapshot.requireData
-                        .map((recipe) => DataRow(cells: <DataCell>[
-                              DataCell(Text(recipe.title)),
-                              DataCell(Text(recipe.description))
-                            ]))
-                        .toList());
-              } else if (snapshot.hasError) {
-                return Text('${snapshot.error}');
-              }
-              return const CircularProgressIndicator();
-            }));
-  }
-
-  @override
-  State<StatefulWidget> createState() {
-    // TODO: implement createState
-    throw UnimplementedError();
   }
 }
 
@@ -112,6 +43,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final titleController = TextEditingController();
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
+    var recipeList = Provider.of<RecipeModel>(context, listen: false);
 
     Navigator.of(context).push(MaterialPageRoute<void>(
         fullscreenDialog: true,
@@ -169,6 +101,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                 child: ElevatedButton(
                                     onPressed: () {
                                       if (_formKey.currentState!.validate()) {
+                                        recipeList.addRecipe(
+                                            titleController.text,
+                                            nameController.text,
+                                            descriptionController.text);
                                         Navigator.of(context).pop("OK");
                                       }
                                     },
@@ -184,14 +120,14 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: Center(
-        child: RecipeListDataTable(),
-      ),
+      body: const Center(child: RecipeListDataTable()),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showFullScreenDialog,
-        tooltip: 'Increment',
+        onPressed: () {
+          _showFullScreenDialog();
+        },
+        tooltip: 'New Recipe',
         child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Recipe {
   final String title;
   final String name;
@@ -13,7 +15,7 @@ class Recipe {
       this.name,
       this.description);
 
-  factory Recipe.fromJson(Map<String, Recipe> json) {
+  factory Recipe.fromJson(Map<String, dynamic> json) {
     return switch(json) {
       {
       'title': String title,
@@ -28,4 +30,10 @@ class Recipe {
       _ => throw const FormatException("Failed to process Recipe data"),
     };
   }
+
+  Map<String, dynamic> toJson() => {
+      'title': title,
+      'name': name,
+      'description': description
+    };
 }
