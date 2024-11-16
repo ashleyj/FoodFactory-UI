@@ -99,13 +99,28 @@ class _MyHomePageState extends State<MyHomePage> {
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 13),
                                 child: ElevatedButton(
-                                    onPressed: () {
+                                    onPressed: () async {
                                       if (_formKey.currentState!.validate()) {
-                                        recipeList.addRecipe(
-                                            titleController.text,
-                                            nameController.text,
-                                            descriptionController.text);
-                                        Navigator.of(context).pop("OK");
+                                        try {
+                                          await recipeList.addRecipe(
+                                              titleController.text,
+                                              nameController.text,
+                                              descriptionController.text);
+
+                                          if (context.mounted) {
+                                            Navigator.of(context).pop("OK");
+                                          }
+                                        } on Exception catch (error) {
+                                          if (context.mounted) {
+                                            await showDialog(
+                                                context: context,
+                                                builder: (context) => AlertDialog(
+                                                    title: const Text(
+                                                        "Recipe Creation Error"),
+                                                    content: Text(
+                                                        "Could not create new recipe: $error")));
+                                          }
+                                        }
                                       }
                                     },
                                     child: const Text("Submit")))

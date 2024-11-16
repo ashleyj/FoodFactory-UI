@@ -26,16 +26,16 @@ class RecipeModel extends ChangeNotifier {
     }
   }
 
-  void addRecipe(String title, String name, String description) async {
+  Future<Recipe> addRecipe(String title, String name, String description) async {
     final response = await http.post(Uri.parse("$uri/recipes"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(
             Recipe(title: title, name: name, description: description).toJson()));
     if (response.statusCode == 201) {
-      //return Recipe.fromJson(jsonDecode(response.body));
-      this.fetchRecipes();
+      fetchRecipes();
+      return Recipe.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception("Failed to get recipes");
+      throw Exception(jsonDecode(response.body)['message']);
     }
   }
 }
