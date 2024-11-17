@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:food_factory_ui/model/RecipeModel.dart';
 import 'package:food_factory_ui/RecipeListDataTable.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 
 void main() async {
   runApp(const MyApp());
@@ -14,7 +15,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<RecipeModel>(create: (context) => RecipeModel())
+        ChangeNotifierProvider<RecipeModel>(create: (context) => RecipeModel(http.Client()))
       ],
       child: MaterialApp(
         title: 'Recipe Management',
